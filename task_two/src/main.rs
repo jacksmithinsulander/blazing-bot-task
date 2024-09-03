@@ -1,8 +1,5 @@
 use alloy::{
-    eips::BlockId, 
-    primitives::{keccak256, Address, FixedBytes, U256},
-    providers::{Provider, ProviderBuilder},
-    sol, rpc::types::{Transaction, TransactionReceipt}
+    eips::BlockId, primitives::{keccak256, Address, FixedBytes, U256}, providers::{Provider, ProviderBuilder, RootProvider}, rpc::types::{Transaction, TransactionReceipt}, sol, transports::http::{Client, Http}
 };
 use eyre::Result;
 use std::io;
@@ -64,7 +61,7 @@ fn prompt_user(prompt: &str) -> String {
 // New helper function
 async fn fetch_transaction_details(
     tx_hash: FixedBytes<32>,
-) -> Result<(Provider, Transaction, TransactionReceipt)> {
+) -> Result<(RootProvider<Http<Client>>, Transaction, TransactionReceipt)> {
     let rpc_url = "https://eth.merkle.io".parse()?;
 
     let provider = ProviderBuilder::new().on_http(rpc_url);
