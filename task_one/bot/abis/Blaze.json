@@ -1,0 +1,170 @@
+[
+    {
+        "type": "function",
+        "name": "collectToken",
+        "inputs": [
+            {
+                "name": "_collectData",
+                "type": "tuple[]",
+                "internalType": "struct DataTypes.CollectData[]",
+                "components": [
+                    {
+                        "name": "payee",
+                        "type": "address",
+                        "internalType": "address"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    }
+                ]
+            },
+            {
+                "name": "_token",
+                "type": "address",
+                "internalType": "address"
+            },
+            {
+                "name": "_reciever",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "_success",
+                "type": "bool",
+                "internalType": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "disperseETH",
+        "inputs": [
+            {
+                "name": "_receivers",
+                "type": "address[]",
+                "internalType": "address[]"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "_success",
+                "type": "bool",
+                "internalType": "bool"
+            }
+        ],
+        "stateMutability": "payable"
+    },
+    {
+        "type": "function",
+        "name": "disperseToken",
+        "inputs": [
+            {
+                "name": "_receivers",
+                "type": "address[]",
+                "internalType": "address[]"
+            },
+            {
+                "name": "_amount",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "_token",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "_success",
+                "type": "bool",
+                "internalType": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "getEthHoldings",
+        "inputs": [
+            {
+                "name": "_user",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "_userHoldings",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "getTokenHolding",
+        "inputs": [
+            {
+                "name": "_token",
+                "type": "address",
+                "internalType": "address"
+            },
+            {
+                "name": "_user",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "_userHoldings",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "error",
+        "name": "ADDRESS_NOT_A_CONTRACT",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "COLLECT_DATA_CANT_BE_EMPTY",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "FAILED_TO_PAY",
+        "inputs": [
+            {
+                "name": "who",
+                "type": "address",
+                "internalType": "address"
+            }
+        ]
+    },
+    {
+        "type": "error",
+        "name": "NOT_ENOUGH_HOLDINGS",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "RECEIVERS_CANT_BE_EMPTY",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "ReentrancyGuardReentrantCall",
+        "inputs": []
+    }
+]
