@@ -1,6 +1,6 @@
 use alloy::{
     eips::BlockId, network::TransactionBuilder, node_bindings::{Anvil, AnvilInstance}, primitives::{
-        address, keccak256, Address, FixedBytes, U256
+        address, keccak256, Address, FixedBytes, Uint, U256
     }, providers::{
         ext::{AnvilApi, DebugApi, TraceApi}, Provider, ProviderBuilder, RootProvider
     }, rpc::types::{
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rpc_url_partial = anvil_partial.endpoint().parse()?;
     let provider_partial = ProviderBuilder::new().on_http(rpc_url_partial);
 
-    trace_block(tx_hash, tx.block_number.unwrap(), provider, provider_partial, anvil, receipt).await?;
+    trace_block(tx_hash, tx.block_number.unwrap(), provider, provider_partial /*, anvil, receipt */).await?;
 
     //match Action::from_str(&action_input) {
         //Ok(Action::Buy) => buy_info(tx_hash, provider, provider_partial).await?,
@@ -211,10 +211,14 @@ async fn buy_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>,
     Ok(())
 }
 
-async fn trace_block(tx_hash: FixedBytes<32>, included_block: u64, provider: RootProvider<Http<Client>>, provider_partial: RootProvider<Http<Client>>, anvil: AnvilInstance, receipt: TransactionReceipt) -> Result<()> {
+async fn trace_block(
+    tx_hash: FixedBytes<32>, 
+    included_block: u64, 
+    provider: RootProvider<Http<Client>>,
+    provider_partial: RootProvider<Http<Client>> 
+) -> Result<(Uint<256, 4>, Uint<256, 4>)> {
     let block_trace = provider.trace_block(BlockId::number(included_block)).await?;
 
-    let mut last_position: u64 = 1;
 
     let call_options = GethDebugTracingOptions {
             config: GethDefaultTracingOptions {
@@ -226,6 +230,8 @@ async fn trace_block(tx_hash: FixedBytes<32>, included_block: u64, provider: Roo
             ..Default::default()
         };
 
+    let mut bal_pre= U256::from(0);
+    let mut bal_post = U256::from(0);
     for transaction in block_trace.iter() {
         let s = transaction.transaction_hash.unwrap();
         let q = transaction.transaction_position.unwrap();
@@ -236,55 +242,47 @@ async fn trace_block(tx_hash: FixedBytes<32>, included_block: u64, provider: Roo
         provider_partial.anvil_auto_impersonate_account(true).await?;
         provider_partial.anvil_impersonate_account(result.from).await?;
 
-        if q != last_position {
-            println!("{:?}, {:?}, {:?}", s, q, w);
+        if s == tx_hash {
+            let o = transaction;
+            println!("FOUND IT");
 
-            if s == tx_hash {
-                let o = transaction;
-                println!("FOUND IT");
+            let ctrct = ERC20::new(address!("ef00a1910642520c2F8e23d3C0A910933ca7f358"), provider_partial.clone());
 
-                let ctrct = ERC20::new(address!("ef00a1910642520c2F8e23d3C0A910933ca7f358"), provider_partial.clone());
+            bal_pre= ctrct.balanceOf(result.from).call().await?.balance;
+            print!("{o:?}");
+            let new_transaction = TransactionRequest::default()
+                .with_from(result.from)
+                .with_to(result.to.unwrap())
+                .with_value(result.value.unwrap())
+                .with_input(w);
 
-                let bal_before = ctrct.balanceOf(result.from).call().await?.balance;
-                print!("{o:?}");
-                let new_transaction = TransactionRequest::default()
-                    .with_from(result.from)
-                    .with_to(result.to.unwrap())
-                    .with_value(result.value.unwrap())
-                    .with_input(w);
+            let new_pending = provider_partial.send_transaction(new_transaction).await?;
 
-                let new_pending = provider_partial.send_transaction(new_transaction).await?;
+            println!("Pending transaction... {}", new_pending.tx_hash());
 
-                println!("Pending transaction... {}", new_pending.tx_hash());
+            let new_receipt = new_pending.get_receipt().await?;
 
-                let new_receipt = new_pending.get_receipt().await?;
+            println!(
+                "Transaction included in block {}",
+                new_receipt.block_number.expect("Failed to get block number")
+            );
+            bal_post = ctrct.balanceOf(result.from).call().await?.balance;
 
-                println!(
-                    "Transaction included in block {}",
-                    new_receipt.block_number.expect("Failed to get block number")
-                );
-                let bal_after = ctrct.balanceOf(result.from).call().await?.balance;
+            println!("Before: {} After: {}", bal_pre, bal_post);
 
-                println!("Before: {} After: {}", bal_before, bal_after);
+            let difference = bal_post - bal_pre;
 
-                let difference = bal_after - bal_before;
+            let decimals = ctrct.decimals().call().await?._0;
+            let formatted_bought = format_with_padding(difference, decimals as usize);
+            println!("Actual bought amount: {}", formatted_bought);
 
-                let decimals = ctrct.decimals().call().await?._0;
-                let formatted_bought = format_with_padding(difference, decimals as usize);
-                println!("Actual bought amount: {}", formatted_bought);
-
-                break;
-            }
-
-            //provider_partial.send_tx_envelope(w).await?.get_receipt().await?;
-
-            last_position = q;
+            break;
         }
+
     }
 
-    //println!("{block_trace:?}");
 
-    Ok(())
+    Ok((bal_pre, bal_post))
 }
 
 fn format_with_padding(value: U256, decimals: usize) -> String {
