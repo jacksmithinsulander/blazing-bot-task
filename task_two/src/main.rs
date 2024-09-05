@@ -1,8 +1,8 @@
 use alloy::{
-    eips::BlockId, network::TransactionBuilder, node_bindings::Anvil, primitives::{
+    network::TransactionBuilder, node_bindings::Anvil, primitives::{
         keccak256, Address, FixedBytes, Uint, U256
     }, providers::{
-        ext::{AnvilApi, DebugApi, TraceApi}, Provider, ProviderBuilder, RootProvider
+        ext::{AnvilApi, DebugApi }, Provider, ProviderBuilder, RootProvider
     }, rpc::types::{
         trace::geth::{
             CallFrame, GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions, GethDefaultTracingOptions
