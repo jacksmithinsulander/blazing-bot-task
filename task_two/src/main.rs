@@ -58,8 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider_partial = ProviderBuilder::new().on_http(rpc_url_partial);
 
     match Action::from_str(&action_input) {
-        Ok(Action::Buy) => buy_info(tx_hash, provider, provider_partial, tx).await?,
-        Ok(Action::Sell) => sell_info(tx_hash, provider, provider_partial, tx).await?,
+        Ok(Action::Buy) => buy_info(provider, provider_partial, tx).await?,
+        Ok(Action::Sell) => sell_info(provider, provider_partial, tx).await?,
         Err(_) => {
             println!("Invalid action! Please enter either 'buy' or 'sell'.");
             return Ok(());
@@ -97,10 +97,9 @@ fn prompt_user(prompt: &str) -> String {
     input.trim().to_string()
 }
 
-async fn sell_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>, provider_partial: RootProvider<Http<Client>>, tx: Transaction) -> Result<()>  {
-    let receipt = provider.get_transaction_receipt(tx_hash).await?.unwrap();
+async fn sell_info(provider: RootProvider<Http<Client>>, provider_partial: RootProvider<Http<Client>>, tx: Transaction) -> Result<()>  {
+    let receipt = provider.get_transaction_receipt(tx.hash).await?.unwrap();
 
-    let included_block = tx.block_number.unwrap();
     let from = tx.from;
 
     let logs = receipt.inner.logs();
@@ -127,11 +126,11 @@ async fn sell_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>
                     ..Default::default()
                 };
 
-                let result = provider.debug_trace_transaction(tx_hash, call_options).await?.try_into_call_frame().unwrap();
+                let result = provider.debug_trace_transaction(tx.hash, call_options).await?.try_into_call_frame().unwrap();
 
                 let sum_eth = sum_calls(&result, receipt.from);
 
-                let (pre, post, decimals, ticker) = get_token_info(tx_hash, included_block, provider.clone(), provider_partial, sender_address, token_address).await?;
+                let (pre, post, decimals, ticker) = get_token_info(tx, provider_partial, sender_address, token_address).await?;
 
                 let amount_token = format_with_padding(pre - post, decimals as usize);
                 
@@ -147,15 +146,15 @@ async fn sell_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>
     Ok(())
 }
 
-async fn buy_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>, provider_partial: RootProvider<Http<Client>>, tx: Transaction) -> Result<()> {
-    let receipt = provider.get_transaction_receipt(tx_hash).await?.unwrap();
+async fn buy_info(provider: RootProvider<Http<Client>>, provider_partial: RootProvider<Http<Client>>, tx: Transaction) -> Result<()> {
+    let receipt = provider.get_transaction_receipt(tx.hash).await?.unwrap();
 
-    let included_block = tx.block_number.unwrap();
     let from = tx.from;
     let value = format_with_padding(tx.value, 18);
 
     let logs = receipt.inner.logs();
     let signature_selector = keccak256("Transfer(address,address,uint256)");
+
 
     for log in logs.iter() {
         let topics = log.inner.data.topics();
@@ -167,7 +166,7 @@ async fn buy_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>,
                 let token_address = log.inner.address;
                 println!("Received token address = {}", token_address);
 
-                let (pre, post, decimals, ticker) = get_token_info(tx_hash, included_block, provider, provider_partial, receiver_address, token_address).await?;
+                let (pre, post, decimals, ticker) = get_token_info(tx, provider_partial, receiver_address, token_address).await?;
 
                 let amount_sent = format_with_padding(post - pre, decimals as usize);
 
@@ -182,14 +181,11 @@ async fn buy_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>,
 }
 
 async fn get_token_info(
-    tx_hash: FixedBytes<32>, 
-    included_block: u64, 
-    provider: RootProvider<Http<Client>>,
+    tx: Transaction,
     provider_partial: RootProvider<Http<Client>>,
     user_address: Address,
     token_address: Address 
 ) -> Result<(Uint<256, 4>, Uint<256, 4>, u8, String)> {
-    let block_trace = provider.trace_block(BlockId::number(included_block)).await?;
 
     provider_partial.anvil_auto_impersonate_account(true).await?;
     provider_partial.anvil_impersonate_account(user_address).await?;
@@ -198,32 +194,16 @@ async fn get_token_info(
     let decimals = contract.decimals().call().await?._0;
     let ticker = contract.symbol().call().await?._0;
 
-    let mut bal_pre= U256::from(0);
-    let mut bal_post = U256::from(0);
+    let bal_pre= contract.balanceOf(user_address).call().await?.balance;
 
-    for transaction in block_trace.iter() {
-        let s = transaction.transaction_hash;
-        let result_pre = transaction.trace.action.as_call();
+    let new_tx = TransactionRequest::default()
+        .with_from(tx.from)
+        .with_to(tx.to.unwrap())
+        .with_value(tx.value)
+        .with_input(tx.input);
 
-        if let (Some(s), Some(result)) = (s, result_pre) {
-            if s == tx_hash {
-                bal_pre = contract.balanceOf(result.from).call().await?.balance;
-
-                let input = result.input.clone();
-
-                let new_transaction = TransactionRequest::default()
-                    .with_from(result.from)
-                    .with_to(result.to)
-                    .with_value(result.value)
-                    .with_input(input);
-
-                provider_partial.send_transaction(new_transaction).await?.get_receipt().await?;
-
-                bal_post = contract.balanceOf(result.from).call().await?.balance;
-                break;
-            }
-        }
-    }
+    provider_partial.send_transaction(new_tx).await?.get_receipt().await?;
+    let bal_post= contract.balanceOf(user_address).call().await?.balance;
 
     Ok((bal_pre, bal_post, decimals, ticker))
 }
