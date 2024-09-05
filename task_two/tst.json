@@ -1,0 +1,173 @@
+CallTracer (
+    CallFrame { 
+        from: 0x97a6a04a5df120b9cfa56a09539b1ad057323790, 
+        gas: 342130, 
+        gas_used: 155514, 
+        to: Some(0x7a250d5630b4cf539739df2c5dacb4c659f2488d),
+        input: 0x791ac9470000000000000000000000000000000000000000000038bd1bafa2baeb041a6000000000000000000000000000000000000000000000000000632c064b890f5400000000000000000000000000000000000000000000000000000000000000a000000000000000000000000097a6a04a5df120b9cfa56a09539b1ad0573237900000000000000000000000000000000000000000000000000000000066d8945e0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000e1c8d908f0e495cf6d8459547d1d28b72bf04bf2000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2,
+        output: None,
+        error: None,
+        revert_reason: None,
+        calls: [
+            CallFrame { 
+                from: 0x7a250d5630b4cf539739df2c5dacb4c659f2488d,
+                gas: 309455,
+                gas_used: 57985, 
+                to: Some(0xe1c8d908f0e495cf6d8459547d1d28b72bf04bf2),
+                input: 0x23b872dd00000000000000000000000097a6a04a5df120b9cfa56a09539b1ad0573237900000000000000000000000008fd98c44936feaf197cc86f1c1b7df8efe7fb18e0000000000000000000000000000000000000000000038bd1bafa2baeb041a60,
+                output: Some(0x0000000000000000000000000000000000000000000000000000000000000001),
+                error: None,
+                revert_reason: None, 
+                calls: [],
+                logs: [],
+                value: Some(0),
+                typ: "CALL" 
+            },
+            CallFrame { 
+                from: 0x7a250d5630b4cf539739df2c5dacb4c659f2488d, 
+                gas: 248194, 
+                gas_used: 2504, 
+                to: Some(0x8fd98c44936feaf197cc86f1c1b7df8efe7fb18e), 
+                input: 0x0902f1ac,
+                output: Some(0x0000000000000000000000000000000000000000000000010adf4e55a55da7bf0000000000000000000000000000000000000000004be45f1c2eb94a6b8271f70000000000000000000000000000000000000000000000000000000066d89443),
+                error: None, 
+                revert_reason: None, 
+                calls: [], 
+                logs: [], 
+                value: None, 
+                typ: "STATICCALL" 
+            },
+            CallFrame {
+                from: 0x7a250d5630b4cf539739df2c5dacb4c659f2488d,
+                gas: 245208, 
+                gas_used: 689, 
+                to: Some(0xe1c8d908f0e495cf6d8459547d1d28b72bf04bf2),
+                input: 0x70a082310000000000000000000000008fd98c44936feaf197cc86f1c1b7df8efe7fb18e, 
+                output: Some(0x0000000000000000000000000000000000000000004c1a45f67bfa48cac657d3), 
+                error: None,
+                revert_reason: 
+                None, calls: [], 
+                logs: [], 
+                value: None, 
+                typ: "STATICCALL" 
+            },
+            CallFrame {
+                from: 0x7a250d5630b4cf539739df2c5dacb4c659f2488d, 
+                gas: 242985, 
+                gas_used: 65008, 
+                to: Some(0x8fd98c44936feaf197cc86f1c1b7df8efe7fb18e),
+                input: 0x022c0d9f00000000000000000000000000000000000000000000000000bc743ff50c930800000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d00000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000, 
+                output: None, 
+                error: None, 
+                revert_reason: None, 
+                calls: [
+                    CallFrame {
+                        from: 0x8fd98c44936feaf197cc86f1c1b7df8efe7fb18e,
+                        gas: 226023,
+                        gas_used: 29962, 
+                        to: Some(0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2), 
+                        input: 0xa9059cbb0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d00000000000000000000000000000000000000000000000000bc743ff50c9308,
+                        output: Some(0x0000000000000000000000000000000000000000000000000000000000000001), 
+                        error: None, 
+                        revert_reason: None, 
+                        calls: [], 
+                        logs: [], 
+                        value: Some(0), 
+                        typ: "CALL" 
+                    }, 
+                    CallFrame { 
+                        from: 0x8fd98c44936feaf197cc86f1c1b7df8efe7fb18e, 
+                        gas: 195908, 
+                        gas_used: 534, 
+                        to: Some(0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2), 
+                        input: 0x70a082310000000000000000000000008fd98c44936feaf197cc86f1c1b7df8efe7fb18e, 
+                        output: Some(0x0000000000000000000000000000000000000000000000010a22da15b05114b7), 
+                        error: None, 
+                        revert_reason: None, 
+                        calls: [], 
+                        logs: [], 
+                        value: None, 
+                        typ: "STATICCALL" 
+                        },
+                    CallFrame { 
+                        from: 0x8fd98c44936feaf197cc86f1c1b7df8efe7fb18e, 
+                        gas: 194977, 
+                        gas_used: 689, 
+                        to: Some(0xe1c8d908f0e495cf6d8459547d1d28b72bf04bf2), 
+                        input: 0x70a082310000000000000000000000008fd98c44936feaf197cc86f1c1b7df8efe7fb18e, 
+                        output: Some(0x0000000000000000000000000000000000000000004c1a45f67bfa48cac657d3), 
+                        error: None, 
+                        revert_reason: None, 
+                        calls: [], 
+                        logs: [], 
+                        value: None, 
+                        typ: "STATICCALL" 
+                    }
+                ], 
+                logs: [], 
+                value: Some(0), 
+                typ: "CALL" 
+            },
+            CallFrame {
+                from: 0x7a250d5630b4cf539739df2c5dacb4c659f2488d,
+                gas: 178531,
+                gas_used: 534, 
+                to: Some(0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2),
+                input: 0x70a082310000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d, 
+                output: Some(0x00000000000000000000000000000000000000000000000000bc743ff50c9308), 
+                error: None, 
+                revert_reason: None, 
+                calls: [], 
+                logs: [], 
+                value: None, 
+                typ: "STATICCALL" 
+            },
+            CallFrame { 
+                from: 0x7a250d5630b4cf539739df2c5dacb4c659f2488d,
+                gas: 177581, 
+                gas_used: 9223,
+                to: Some(0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2), 
+                input: 0x2e1a7d4d00000000000000000000000000000000000000000000000000bc743ff50c9308, 
+                output: None, 
+                error: None, 
+                revert_reason: None, 
+                calls: [
+                    CallFrame { 
+                        from: 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2, 
+                        gas: 2300, 
+                        gas_used: 83, 
+                        to: Some(0x7a250d5630b4cf539739df2c5dacb4c659f2488d), 
+                        input: 0x, 
+                        output: None, 
+                        error: None, 
+                        revert_reason: None, 
+                        calls: [], 
+                        logs: [], 
+                        value: Some(53045113664606984), 
+                        typ: "CALL" 
+                    }
+                ], 
+                logs: [],
+                value: Some(0), 
+                typ: "CALL" 
+            }, 
+            CallFrame { 
+                from: 0x7a250d5630b4cf539739df2c5dacb4c659f2488d, 
+                gas: 161501, 
+                gas_used: 0, 
+                to: Some(0x97a6a04a5df120b9cfa56a09539b1ad057323790), 
+                input: 0x, 
+                output: None, 
+                error: None, 
+                revert_reason: None, 
+                calls: [], 
+                logs: [], 
+                value: Some(53045113664606984), 
+                typ: "CALL" 
+            }
+        ], 
+        logs: [], 
+        value: Some(0),
+        typ: "CALL" 
+    }
+)

@@ -1,5 +1,13 @@
 use alloy::{
-    eips::BlockId, primitives::{keccak256, Address, FixedBytes, U256}, providers::{Provider, ProviderBuilder, RootProvider}, rpc::types::{Transaction, TransactionReceipt}, sol, transports::http::{Client, Http}
+    eips::BlockId, network::TransactionBuilder, node_bindings::{Anvil, AnvilInstance}, primitives::{
+        address, keccak256, Address, FixedBytes, U256
+    }, providers::{
+        ext::{AnvilApi, DebugApi, TraceApi}, Provider, ProviderBuilder, RootProvider
+    }, rpc::types::{
+        trace::geth::{
+            CallFrame, GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions, GethDefaultTracingOptions
+        }, Transaction, TransactionReceipt, TransactionRequest
+    }, sol, transports::http::{Client, Http}
 };
 use eyre::Result;
 use std::io;
@@ -38,16 +46,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let tx_hash = FixedBytes::from_str(&tx_hash_string).unwrap();
 
-    match Action::from_str(&action_input) {
-        Ok(Action::Buy) => buy_info(tx_hash).await?,
-        Ok(Action::Sell) => sell_info(tx_hash).await?,
-        Err(_) => {
-            println!("Invalid action! Please enter either 'buy' or 'sell'.");
-            return Ok(());
+    let anvil = Anvil::new().fork("https://eth-pokt.nodies.app").try_spawn()?;
+
+    let rpc_url = anvil.endpoint().parse()?;
+    let provider = ProviderBuilder::new().on_http(rpc_url);
+
+    let tx = provider.get_transaction_by_hash(tx_hash).await?.unwrap();
+
+    let receipt = provider.get_transaction_receipt(tx_hash).await?.unwrap();
+
+    let anvil_partial = Anvil::new().fork("https://eth-pokt.nodies.app").fork_block_number(tx.block_number.unwrap()-1).try_spawn()?;
+    let rpc_url_partial = anvil_partial.endpoint().parse()?;
+    let provider_partial = ProviderBuilder::new().on_http(rpc_url_partial);
+
+    trace_block(tx_hash, tx.block_number.unwrap(), provider, provider_partial, anvil, receipt).await?;
+
+    //match Action::from_str(&action_input) {
+        //Ok(Action::Buy) => buy_info(tx_hash, provider, provider_partial).await?,
+        //Ok(Action::Sell) => sell_info(tx_hash, provider, provider_partial).await?,
+        //Err(_) => {
+            //println!("Invalid action! Please enter either 'buy' or 'sell'.");
+            //return Ok(());
+        //}
+    //}
+
+    Ok(())
+}
+
+fn sum_calls(call_frame: &CallFrame, target_address: Address) -> U256 {
+    let mut total_value = U256::from(0);
+
+    if call_frame.typ == "CALL" {
+        if let Some(to_address) = call_frame.to {
+            if to_address == target_address {
+                if let Some(value) = call_frame.value {
+                    total_value += value;
+                }
+            }
         }
     }
 
-    Ok(())
+    for sub_call in &call_frame.calls {
+        total_value += sum_calls(sub_call, target_address);
+    }
+
+    total_value
 }
 
 fn prompt_user(prompt: &str) -> String {
@@ -58,11 +101,10 @@ fn prompt_user(prompt: &str) -> String {
     input.trim().to_string()
 }
 
-// New helper function
 async fn fetch_transaction_details(
     tx_hash: FixedBytes<32>,
 ) -> Result<(RootProvider<Http<Client>>, Transaction, TransactionReceipt)> {
-    let rpc_url = "https://eth.merkle.io".parse()?;
+    let rpc_url = "https://eth-pokt.nodies.app".parse()?;
 
     let provider = ProviderBuilder::new().on_http(rpc_url);
 
@@ -72,8 +114,8 @@ async fn fetch_transaction_details(
     Ok((provider, tx, receipt))
 }
 
-async fn sell_info(tx_hash: FixedBytes<32>) -> Result<()>  {
-    let (provider, tx, receipt) = fetch_transaction_details(tx_hash).await?;
+async fn sell_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>, provider_partial: RootProvider<Http<Client>>) -> Result<()>  {
+    let (provider_, tx, receipt) = fetch_transaction_details(tx_hash).await?;
 
     let included_block = tx.block_number.unwrap();
     let from = tx.from;
@@ -99,14 +141,24 @@ async fn sell_info(tx_hash: FixedBytes<32>) -> Result<()>  {
 
                 let pre = contract.balanceOf(from).block(BlockId::number(included_block - 1)).call().await?.balance;
                 let post = contract.balanceOf(from).block(BlockId::number(included_block + 1)).call().await?.balance;
-                let bal_pre = provider.get_balance(from).block_id(BlockId::number(included_block - 1)).await?;
-                let bal_post = provider.get_balance(from).block_id(BlockId::number(included_block + 1)).await?;
-                let gas = U256::from(receipt.effective_gas_price * receipt.gas_used);
-                println!("Gas: {}", gas);
+
+                let call_options = GethDebugTracingOptions {
+                    config: GethDefaultTracingOptions {
+                        disable_storage: Some(true),
+                        enable_memory: Some(false),
+                        ..Default::default()
+                    },
+                    tracer: Some(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::CallTracer)),
+                    ..Default::default()
+                };
+
+                let result = provider.debug_trace_transaction(tx_hash, call_options).await?.try_into_call_frame().unwrap();
+
+                let sum_eth = sum_calls(&result, receipt.from);
 
                 let amount_token = format_with_padding(pre - post, decimals as usize);
-
-                let amount_eth = format_with_padding((bal_post - bal_pre) + gas, 18);
+                
+                let amount_eth = format_with_padding(U256::from(sum_eth), 18);
 
                 println!("Sent {} {}", &amount_token, ticker.to_lowercase());
                 println!("Received {} ether", &amount_eth);
@@ -118,8 +170,8 @@ async fn sell_info(tx_hash: FixedBytes<32>) -> Result<()>  {
     Ok(())
 }
 
-async fn buy_info(tx_hash: FixedBytes<32>) -> Result<()> {
-    let (provider, tx, receipt) = fetch_transaction_details(tx_hash).await?;
+async fn buy_info(tx_hash: FixedBytes<32>, provider: RootProvider<Http<Client>>, provider_partial: RootProvider<Http<Client>>) -> Result<()> {
+    let (provider_, tx, receipt) = fetch_transaction_details(tx_hash).await?;
 
     let included_block = tx.block_number.unwrap();
     let from = tx.from;
@@ -155,6 +207,82 @@ async fn buy_info(tx_hash: FixedBytes<32>) -> Result<()> {
             }
         }
     }
+
+    Ok(())
+}
+
+async fn trace_block(tx_hash: FixedBytes<32>, included_block: u64, provider: RootProvider<Http<Client>>, provider_partial: RootProvider<Http<Client>>, anvil: AnvilInstance, receipt: TransactionReceipt) -> Result<()> {
+    let block_trace = provider.trace_block(BlockId::number(included_block)).await?;
+
+    let mut last_position: u64 = 1;
+
+    let call_options = GethDebugTracingOptions {
+            config: GethDefaultTracingOptions {
+                disable_storage: Some(true),
+                enable_memory: Some(false),
+                ..Default::default()
+            },
+            tracer: Some(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::CallTracer)),
+            ..Default::default()
+        };
+
+    for transaction in block_trace.iter() {
+        let s = transaction.transaction_hash.unwrap();
+        let q = transaction.transaction_position.unwrap();
+
+        let result = provider.debug_trace_transaction(s, call_options.clone()).await?.try_into_call_frame().unwrap();
+        let w = result.input;
+
+        provider_partial.anvil_auto_impersonate_account(true).await?;
+        provider_partial.anvil_impersonate_account(result.from).await?;
+
+        if q != last_position {
+            println!("{:?}, {:?}, {:?}", s, q, w);
+
+            if s == tx_hash {
+                let o = transaction;
+                println!("FOUND IT");
+
+                let ctrct = ERC20::new(address!("ef00a1910642520c2F8e23d3C0A910933ca7f358"), provider_partial.clone());
+
+                let bal_before = ctrct.balanceOf(result.from).call().await?.balance;
+                print!("{o:?}");
+                let new_transaction = TransactionRequest::default()
+                    .with_from(result.from)
+                    .with_to(result.to.unwrap())
+                    .with_value(result.value.unwrap())
+                    .with_input(w);
+
+                let new_pending = provider_partial.send_transaction(new_transaction).await?;
+
+                println!("Pending transaction... {}", new_pending.tx_hash());
+
+                let new_receipt = new_pending.get_receipt().await?;
+
+                println!(
+                    "Transaction included in block {}",
+                    new_receipt.block_number.expect("Failed to get block number")
+                );
+                let bal_after = ctrct.balanceOf(result.from).call().await?.balance;
+
+                println!("Before: {} After: {}", bal_before, bal_after);
+
+                let difference = bal_after - bal_before;
+
+                let decimals = ctrct.decimals().call().await?._0;
+                let formatted_bought = format_with_padding(difference, decimals as usize);
+                println!("Actual bought amount: {}", formatted_bought);
+
+                break;
+            }
+
+            //provider_partial.send_tx_envelope(w).await?.get_receipt().await?;
+
+            last_position = q;
+        }
+    }
+
+    //println!("{block_trace:?}");
 
     Ok(())
 }

@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alloy = { version = "0.3", features = ["full"] }
+alloy = { version = "0.3", features = [
+    "full",
+    "rpc-types-trace",
+    "rpc-types-debug",
+    "node-bindings"
+] }
 tokio = { version = "1", features = ["full"] }
 eyre = "0.6.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
